@@ -48,6 +48,7 @@ def encode_to_labels(txt):
 path = 'mnt/ramdisk/max/90kDICT32px'
  
 #lists for validation dataset
+raw_img = []
 valid_img = []
 valid_txt = []
 valid_input_length = []
@@ -60,36 +61,39 @@ i = 10
 flag = 0
  
 for root, dirnames, filenames in os.walk(path):
-    for f_name in fnmatch.filter(filenames, '*.jpg'):
-        # read input image and convert into gray scale image
-        img = cv2.cvtColor(cv2.imread(os.path.join(root, f_name)), cv2.COLOR_BGR2GRAY)   
- 
-        # convert each image of shape (32, 128, 1)
-        w, h = img.shape
-        if h > 128 or w > 32:
-            continue
-        if w < 32:
-            add_zeros = np.ones((32-w, h))*255
-            img = np.concatenate((img, add_zeros))
- 
-        if h < 128:
-            add_zeros = np.ones((32, 128-h))*255
-            img = np.concatenate((img, add_zeros), axis=1)
-        img = np.expand_dims(img , axis = 2)
-        
-        # Normalize each image
-        img = img/255.
-        
-        # get the text from the image
-        txt = f_name.split('_')[1]
-        
-        # compute maximum length of the text
-        if len(txt) > max_label_len:
-            max_label_len = len(txt)
-            
+    for f_name in fnmatch.filter(filenames, '*.jpg'):            
         # split the 150000 data into validation and training dataset as 10% and 90% respectively
         if i%10 == 0:
             print(i)
+            # read input image and convert into gray scale image
+            img = cv2.cvtColor(cv2.imread(os.path.join(root, f_name)), cv2.COLOR_BGR2GRAY)   
+            
+            # convert each image of shape (32, 128, 1)
+            w, h = img.shape
+            if h > 128 or w > 32:
+                continue
+            
+            raw_img.append(img)
+            
+            if w < 32:
+                add_zeros = np.ones((32-w, h))*255
+                img = np.concatenate((img, add_zeros))
+     
+            if h < 128:
+                add_zeros = np.ones((32, 128-h))*255
+                img = np.concatenate((img, add_zeros), axis=1)
+            img = np.expand_dims(img , axis = 2)
+            
+            # Normalize each image
+            img = img/255.
+            
+            # get the text from the image
+            txt = f_name.split('_')[1]
+            
+            # compute maximum length of the text
+            if len(txt) > max_label_len:
+                max_label_len = len(txt)
+            
             valid_orig_txt.append(txt)   
             valid_label_length.append(len(txt))
             valid_input_length.append(31)
@@ -200,23 +204,66 @@ out = K.get_value(K.ctc_decode(prediction, input_length=np.ones(prediction.shape
                          greedy=True)[0][0])
 
 #%%
-def ShowTestImage(index):
-    cv2.imshow("")
+def TestImage(index, text):
+    image = raw_img[index]
+    h,w = image.shape
+    image = cv2.resize(image, (w*3, h*3))
+    image = cv2.copyMakeBorder(image, 0, int(h*1.5), 0, 0, cv2.BORDER_CONSTANT)
+    cv2.putText(
+        image, #numpy array on which text is written
+        text,
+        (0, h*4), #position at which writing has to start
+        cv2.FONT_HERSHEY_SIMPLEX, #font family
+        1, #font size
+        (255,255,255), #font color
+        2,
+        cv2.LINE_AA) #font stroke
+    filename = "test/" + str(index) + "-" + valid_orig_txt[index] + ".png"
+    cv2.imwrite(filename, image)
+    
 #%%
-# see the results
-i = 0
-count = 0
-for x in out:
-    orig = valid_orig_txt[i]
-    print("orig_text =  ", orig)
-    print("pred_text = ", end = '')
+def convert_to_plaintext(output):
     pred = ""
     for p in x:  
         if int(p) != -1:
             print(char_list[int(p)] , end = '') 
             pred = pred + char_list[int(p)] 
-    if pred == orig: count+=1
+    return pred
+
+#%%
+# see the results
+i = 0
+correct = []
+
+for x in out:
+    orig = valid_orig_txt[i]
+    print("orig_text =  " + orig)
+    pred = convert_to_plaintext(x)
+    print("pred_text = " + pred)
+    TestImage(i, pred)
+    if pred == orig: 
+        correct.append(raw_img[i])
     print('\n')
     i+=1
     
-print("Test accuracy (%): ", count*100/len(out))
+print("Test accuracy (%): ", len(correct)*100/len(out))
+
+#%%
+def RawImage(index):
+    image = raw_img[index]
+    h,w = image.shape
+    image = cv2.resize(image, (w*3, h*3))
+    image = cv2.copyMakeBorder(image, 0, int(h*1.5), 0, 0, cv2.BORDER_CONSTANT)
+    cv2.putText(
+        image, #numpy array on which text is written
+        valid_orig_txt[index],
+        (0, h*4), #position at which writing has to start
+        cv2.FONT_HERSHEY_SIMPLEX, #font family
+        1, #font size
+        (255,255,255), #font color
+        2,
+        cv2.LINE_AA) #font stroke
+    filename = "raw/" + str(index) + "-" + valid_orig_txt[index] + ".png"
+    cv2.imwrite(filename, image)
+    
+for j in range(len(raw_img)): RawImage(j)
