@@ -47,14 +47,6 @@ def encode_to_labels(txt):
 #%%
 path = 'mnt/ramdisk/max/90kDICT32px'
  
- 
-# lists for training dataset
-training_img = []
-training_txt = []
-train_input_length = []
-train_label_length = []
-orig_txt = []
- 
 #lists for validation dataset
 valid_img = []
 valid_txt = []
@@ -64,11 +56,10 @@ valid_orig_txt = []
  
 max_label_len = 0
 
-i =1 
+i = 10
 flag = 0
  
 for root, dirnames, filenames in os.walk(path):
-    
     for f_name in fnmatch.filter(filenames, '*.jpg'):
         # read input image and convert into gray scale image
         img = cv2.cvtColor(cv2.imread(os.path.join(root, f_name)), cv2.COLOR_BGR2GRAY)   
@@ -103,26 +94,18 @@ for root, dirnames, filenames in os.walk(path):
             valid_label_length.append(len(txt))
             valid_input_length.append(31)
             valid_img.append(img)
-            valid_txt.append(encode_to_labels(txt))
-        else:
-            orig_txt.append(txt)   
-            train_label_length.append(len(txt))
-            train_input_length.append(31)
-            training_img.append(img)
-            training_txt.append(encode_to_labels(txt)) 
+            valid_txt.append(encode_to_labels(txt))  
         
         # break the loop if total data is 150000
         if i == 150000:
             flag = 1
             break
-        i+=1
+        i+=10
     if flag == 1:
         break
 
 #%%
 # pad each output label to maximum text length
- 
-train_padded_txt = pad_sequences(training_txt, maxlen=max_label_len, padding='post', value = len(char_list))
 valid_padded_txt = pad_sequences(valid_txt, maxlen=max_label_len, padding='post', value = len(char_list))
 
 #%%
@@ -177,12 +160,6 @@ def ctc_lambda_func(args):
  
  
 loss_out = Lambda(ctc_lambda_func, output_shape=(1,), name='ctc')([outputs, labels, input_length, label_length])
-
-#model to be used at training time
-model = Model(inputs=[inputs, labels, input_length, label_length], outputs=loss_out)
-
-#%%
-model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer = 'adam')
  
 filepath="best_model.hdf5"
 checkpoint = ModelCheckpoint(filepath=filepath, monitor='val_acc', verbose=1, 
@@ -190,32 +167,12 @@ checkpoint = ModelCheckpoint(filepath=filepath, monitor='val_acc', verbose=1,
 callbacks_list = [checkpoint]
 
 #%%
-training_img = np.array(training_img)
-train_input_length = np.array(train_input_length)
-train_label_length = np.array(train_label_length)
-
 valid_img = np.array(valid_img)
 valid_input_length = np.array(valid_input_length)
 valid_label_length = np.array(valid_label_length)
 
 #%%
-
-batch_size = 256
-epochs = 10
-x_arr = [training_img, train_padded_txt, train_input_length, train_label_length]
-y_arr = np.zeros(len(training_img))
-x_val_arr = [valid_img, valid_padded_txt, valid_input_length, valid_label_length]
-y_val_arr = [np.zeros(len(valid_img))]
-
-history = model.fit(x=x_arr, y=y_arr, batch_size=batch_size, epochs = epochs, 
-                    validation_data = (x_val_arr, y_val_arr), verbose = 1, 
-                    callbacks = callbacks_list)
-
-file_history = "history.npy"
-np.save(file_history, history.history)
-
-#%%
-def VisualizeHistory():
+def VisualizeHistory(file_history):
     ''' Vẽ đồ thị accuracy và loss '''
 
     # load history
@@ -223,19 +180,18 @@ def VisualizeHistory():
     # summarize history for loss
     plt.plot(saved_history['loss'])
     plt.plot(saved_history['val_loss'])
-    plt.title('Model loss (epochs = ' + str(epochs) + ")")
+    plt.title("Model loss")
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.legend(['loss', 'val_loss'], loc='upper left')
     plt.show()
 
 #%%
-VisualizeHistory()
-
-#%%
 # load the saved best model weights
 act_model.load_weights('best_model.hdf5')
- 
+file_history = "history.npy"
+VisualizeHistory(file_history)
+
 # predict outputs on validation images
 prediction = act_model.predict(valid_img)
  
