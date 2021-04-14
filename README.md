@@ -53,3 +53,16 @@ mnt
 ```
 Test accuracy (%):  68.74666666666667
 ```
+
+- Test:
+
+![](test/0-Classmates.png)
+![](test/1-greater.png)
+![](test/2-NUCLEAR.png)
+![](test/3-reedy.png)
+![](test/4-FLOWING.png)
+![](test/5-Peens.png)
+![](test/6-besots.png)
+![](test/7-TELEPATHIC.png)
+![](test/8-SWOOSHED.png)
+![](test/9-Expend.png)
