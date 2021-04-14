@@ -250,12 +250,13 @@ for x in out:
     orig = valid_orig_txt[i]
     print("orig_text =  ", orig)
     print("pred_text = ", end = '')
+    pred = ""
     for p in x:  
         if int(p) != -1:
-            pred = char_list[int(p)] 
-            print(pred, end = '')  
-            if pred == orig: count+=1
+            print(char_list[int(p)] , end = '') 
+            pred = pred + char_list[int(p)] 
+    if pred == orig: count+=1
     print('\n')
     i+=1
     
-print("Test accuracy: ", count/len(out))
+print("Test accuracy (%): ", count*100/len(out))
